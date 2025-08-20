@@ -2,7 +2,6 @@ numpy==1.23.1
 smplx==0.1.28
 tqdm==4.67.1
 opencv-python==4.11.0.86
-chumpy==0.70
 trimesh==4.6.2
 pyrender==0.1.45
 matplotlib==3.7.5

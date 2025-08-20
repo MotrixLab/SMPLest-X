@@ -8,6 +8,7 @@ import torch
 import torch.distributed as dist
 import random
 import numpy as np
+from .device_utils import get_device, synchronize
 
 
 def get_dist_info():
@@ -36,10 +37,7 @@ def set_seed(seed):
 
 
 def time_synchronized():
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-    elif torch.backends.mps.is_available():
-        torch.mps.synchronize()
+    synchronize()  # Use centralized synchronization
     return time.time()
 
 
@@ -156,21 +154,10 @@ def all_gather(data):
     # serialized to a Tensor
     buffer = pickle.dumps(data)
     storage = torch.ByteStorage.from_buffer(buffer)
-    if torch.backends.mps.is_available():
-        device = torch.device('mps')
-    elif torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
+    device = get_device()  # Use centralized device selection
     tensor = torch.ByteTensor(storage).to(device)
 
     # obtain Tensor size of each rank
-    if torch.backends.mps.is_available():
-        device = torch.device('mps')
-    elif torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
     local_size = torch.tensor([tensor.numel()], device=device)
     size_list = [torch.tensor([0], device=device) for _ in range(world_size)]
     dist.all_gather(size_list, local_size)
@@ -181,22 +168,10 @@ def all_gather(data):
     # we pad the tensor because torch all_gather does not support
     # gathering tensors of different shapes
     tensor_list = []
-    if torch.backends.mps.is_available():
-        device = torch.device('mps')
-    elif torch.cuda.is_available():
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
     for _ in size_list:
         tensor_list.append(
             torch.empty((max_size, ), dtype=torch.uint8, device=device))
     if local_size != max_size:
-        if torch.backends.mps.is_available():
-            device = torch.device('mps')
-        elif torch.cuda.is_available():
-            device = torch.device('cuda')
-        else:
-            device = torch.device('cpu')
         padding = torch.empty(
             size=(max_size - local_size, ), dtype=torch.uint8, device=device)
         tensor = torch.cat((tensor, padding), dim=0)

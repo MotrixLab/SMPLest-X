@@ -157,7 +157,9 @@ def visualize_humandata(args):
     if has_smpl and has_smplx:
         has_smpl = False
 
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    # Use cross-platform device selection
+    from utils.device_utils import get_device
+    device = get_device()
 
     flat_hand_mean = args.flat_hand_mean
     if 'misc' in param.keys():
