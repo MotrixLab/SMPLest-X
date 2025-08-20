@@ -19,6 +19,7 @@ import torch.utils.data.distributed
 from utils.distribute_utils import (
     get_rank, is_main_process, time_synchronized, get_group_idx, get_process_groups, get_dist_info
 )
+from utils.device_utils import get_device, to_device, empty_cache
 
 def dynamic_import(module_name, object_name):
     """Dynamically import a module and access a specific object."""
@@ -89,9 +90,9 @@ class Trainer(Base):
             ckpt_path = self.cfg.model.pretrained_model_path
             ckpt = torch.load(ckpt_path, map_location=torch.device('cpu')) # solve CUDA OOM error in DDP
             model.load_state_dict(ckpt['network'], strict=False)
-            model.cuda()
+            model = to_device(model)
             self.logger.info(f'Load checkpoint from {ckpt_path}')
-            torch.cuda.empty_cache()
+            empty_cache()
             if getattr(self.cfg.train, 'start_over', True):
                 start_epoch = 0
             else:
@@ -153,12 +154,17 @@ class Trainer(Base):
         
         if self.distributed:
             self.logger_info("Using distributed data parallel.")
-            model.cuda()
-            model = torch.nn.parallel.DistributedDataParallel(
-                model, device_ids=[self.gpu_idx],
-                find_unused_parameters=True) 
+            model = to_device(model)
+            if get_device().type == 'cuda':
+                model = torch.nn.parallel.DistributedDataParallel(
+                    model, device_ids=[self.gpu_idx],
+                    find_unused_parameters=True)
+            else:
+                # For MPS, we can't use DistributedDataParallel with device_ids
+                model = torch.nn.parallel.DistributedDataParallel(
+                    model, find_unused_parameters=True)
         else:
-            model = DataParallel(model).cuda()
+            model = to_device(DataParallel(model))
 
         optimizer = self.get_optimizer(model)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 
@@ -207,7 +213,7 @@ class Tester(Base):
         # prepare network
         self.logger.info("Creating graph...")
         model = get_model(self.cfg, 'test')
-        model = DataParallel(model).cuda()
+        model = to_device(DataParallel(model))
 
         ckpt = torch.load(self.cfg.model.pretrained_model_path, map_location=torch.device('cpu'))
 
@@ -221,7 +227,7 @@ class Tester(Base):
             new_state_dict[k] = v
         self.logger.warning("Attention: Strict=False is set for checkpoint loading. Please check manually.")
         model.load_state_dict(new_state_dict, strict=False)
-        model.cuda()
+        model = to_device(model)
         model.eval()
 
         self.model = model

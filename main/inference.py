@@ -16,6 +16,7 @@ from main.config import Config
 from utils.data_utils import load_img, process_bbox, generate_patch_image
 from utils.visualization_utils import render_mesh
 from utils.inference_utils import non_max_suppression
+from utils.device_utils import get_device, get_device_name, to_device
 
 
 def parse_args():
@@ -84,8 +85,9 @@ def main():
         original_img_height, original_img_width = original_img.shape[:2]
         
         # detection, xyxy
+        device_name = get_device_name()
         yolo_bbox = detector.predict(original_img, 
-                                device='cuda', 
+                                device=device_name, 
                                 classes=00, 
                                 conf=cfg.inference.detection.conf, 
                                 save=cfg.inference.detection.save, 
@@ -126,7 +128,7 @@ def main():
                                                 out_shape=cfg.model.input_img_shape)
                 
             img = transform(img.astype(np.float32))/255
-            img = img.cuda()[None,:,:,:]
+            img = to_device(img)[None,:,:,:]
             inputs = {'img': img}
             targets = {}
             meta_info = {}
