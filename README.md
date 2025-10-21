@@ -45,7 +45,7 @@ bash scripts/install.sh
 - Follow [OSX](https://github.com/IDEA-Research/OSX) in preparing pretrained ViTPose models. Download the ViTPose pretrained weights from [here](https://github.com/ViTAE-Transformer/ViTPose).
 
 #### HumanData
-- Please refer to this guide for instructions on preparing the data in the HumanData format.
+- Please refer to [this guide](humandata_prep/README.md) for instructions on preparing the data in the HumanData format.
 
 The final file structure should be like:
 ```
