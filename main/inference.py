@@ -95,7 +95,7 @@ def main():
         if len(yolo_bbox)<1:
             # save original image if no bbox
             num_bbox = 0
-        if not args.multi_person:
+        elif not args.multi_person:
             # only select the largest bbox
             num_bbox = 1
             # yolo_bbox = yolo_bbox[0]
